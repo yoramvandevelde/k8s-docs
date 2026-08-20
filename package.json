@@ -1,0 +1,14 @@
+{
+  "name": "k8s-api-docs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "fetch-specs": "node scripts/fetch-specs.mjs",
+    "build": "node scripts/gen-reference.mjs",
+    "refresh": "npm run fetch-specs && npm run build",
+    "serve": "npx serve build"
+  },
+  "engines": {
+    "node": ">=20.0"
+  }
+}
