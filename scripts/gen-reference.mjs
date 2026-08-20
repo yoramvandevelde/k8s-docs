@@ -241,7 +241,7 @@ const CSS = `
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   background: var(--bg);
   color: var(--fg);
   display: flex;
@@ -352,6 +352,16 @@ table.fields td, table.ops-table td {
 }
 table.fields td.field-desc p { margin: 0 0 .5rem; color: var(--fg); }
 table.fields td.field-desc p:last-child { margin-bottom: 0; }
+
+/* Prose from the spec reads better in a proportional face - everything else on
+   the page (kinds, field names, types, paths) stays monospace. Sans is set a
+   touch larger because it looks optically smaller than mono at the same size. */
+.entity > p, table.fields td.field-desc p {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: .95rem;
+  line-height: 1.55;
+}
+table.fields td.field-desc p { font-size: .9rem; }
 .field-name code { background: var(--code-bg); padding: .1rem .35rem; border-radius: 4px; }
 .required { color: #e03131; margin-left: .25rem; font-weight: 700; }
 .type-link { background: var(--accent-soft); padding: .1rem .4rem; border-radius: 4px; }
@@ -456,7 +466,7 @@ function renderLandingPage(versions) {
 @media (prefers-color-scheme: dark) {
   :root { --bg: #14161a; --fg: #e6e8eb; --fg-muted: #9aa1ac; --border: #2b2f37; --accent: #7a9bff; --accent-soft: #1f2740; --code-bg: #20242c; }
 }
-body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--fg); font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
 main { max-width: 480px; padding: 2rem; }
 h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
 p { color: var(--fg-muted); }
