@@ -18,6 +18,8 @@
  *       "eks"          every minor Amazon EKS still offers, standard *and*
  *                      extended support, each resolved to its latest patch
  *       "eks-standard" the same, but only the minors in standard support
+ *       "latest"       the newest upstream stable release, which is normally
+ *                      ahead of anything EKS offers yet
  *     Entries may be combined ("1.36,eks") and the result is deduplicated, so
  *     an alias and an explicit minor never build the same version twice. Each
  *     resolved version gets its own ./specs/<version>/ - completely separate
@@ -36,6 +38,12 @@ const VERSIONS_FILE = path.join(process.cwd(), '.k8s-versions.json');
 
 const MINOR_RE = /^v?\d+\.\d+$/;
 const EKS_SUPPORT_URL = 'https://endoflife.date/api/v1/products/amazon-eks';
+
+async function resolveLatestStable() {
+  const res = await fetch('https://dl.k8s.io/release/stable.txt');
+  if (!res.ok) throw new Error(`Could not resolve stable k8s version: ${res.status}`);
+  return (await res.text()).trim();
+}
 
 async function resolveMinor(minorEntry) {
   const minor = minorEntry.replace(/^v/, '');
@@ -78,6 +86,9 @@ async function resolveEksMinors(standardOnly) {
 async function resolveEntry(entry) {
   entry = entry.trim();
   const alias = entry.toLowerCase();
+  // Upstream releases a minor months before EKS offers it, so this is what
+  // puts the not-yet-on-EKS API surface on the site alongside the EKS ones.
+  if (alias === 'latest') return [await resolveLatestStable()];
   if (alias === 'eks' || alias === 'eks-standard') {
     const minors = await resolveEksMinors(alias === 'eks-standard');
     return Promise.all(minors.map(resolveMinor));
@@ -93,9 +104,7 @@ async function resolveVersions() {
     return [...new Set(versions)];
   }
   if (process.env.K8S_VERSION) return [process.env.K8S_VERSION.trim()];
-  const res = await fetch('https://dl.k8s.io/release/stable.txt');
-  if (!res.ok) throw new Error(`Could not resolve stable k8s version: ${res.status}`);
-  return [(await res.text()).trim()];
+  return [await resolveLatestStable()];
 }
 
 async function fetchOne(version) {

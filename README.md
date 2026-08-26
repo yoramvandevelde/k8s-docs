@@ -91,10 +91,14 @@ Each entry in `K8S_VERSIONS` is one of:
 - `eks-standard` - every minor Amazon EKS currently offers under *standard*
   support, each resolved to its latest patch;
 - `eks` - the same, but including the minors that are only in EKS *extended*
-  support. Minors EKS has dropped entirely are never included either way.
+  support. Minors EKS has dropped entirely are never included either way;
+- `latest` - the newest upstream stable release. Upstream ships a minor
+  months before EKS offers it, so this is how the API surface that is coming
+  next lands on the site next to the versions you actually run.
 
 So you can float some and pin others, and entries combine and deduplicate
-("eks-standard,1.31" tracks whatever EKS supports today plus a fixed 1.31).
+("eks-standard,latest" tracks what EKS supports today plus whatever upstream
+released most recently, and builds the overlap only once).
 `K8S_VERSION` (singular) still works for the single-version case if you want
 to pin one exact release without touching `K8S_VERSIONS`.
 
