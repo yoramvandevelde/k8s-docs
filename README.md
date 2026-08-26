@@ -83,11 +83,26 @@ K8S_VERSIONS="1.34,1.35,1.36" npm run fetch-specs
 npm run build
 ```
 
-Each entry in `K8S_VERSIONS` is either a minor version ("1.34" - resolved to
-its latest patch via `dl.k8s.io/release/stable-1.34.txt`) or a full version
-("v1.34.10" - used as-is), so you can pin exact patches for some and float
-others. `K8S_VERSION` (singular) still works for the single-version case if
-you want to pin one exact release without touching `K8S_VERSIONS`.
+Each entry in `K8S_VERSIONS` is one of:
+
+- a minor version ("1.34") - resolved to its latest patch via
+  `dl.k8s.io/release/stable-1.34.txt`, so it floats;
+- a full version ("v1.34.10") - used as-is, pinned;
+- `eks-standard` - every minor Amazon EKS currently offers under *standard*
+  support, each resolved to its latest patch;
+- `eks` - the same, but including the minors that are only in EKS *extended*
+  support. Minors EKS has dropped entirely are never included either way.
+
+So you can float some and pin others, and entries combine and deduplicate
+("eks-standard,1.31" tracks whatever EKS supports today plus a fixed 1.31).
+`K8S_VERSION` (singular) still works for the single-version case if you want
+to pin one exact release without touching `K8S_VERSIONS`.
+
+The EKS support calendar comes from
+[endoflife.date](https://endoflife.date/amazon-eks) rather than AWS's own
+`eks:DescribeClusterVersions`, so the build needs no AWS credentials. If that
+lookup fails the run fails too, on purpose: continuing with a shorter list
+would silently drop version pages from the deployed site.
 
 ## Tracking your own spec instead
 

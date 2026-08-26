@@ -11,10 +11,16 @@
  * cross-links across the whole API surface on one page.
  *
  * Which version(s) to fetch:
- *   - K8S_VERSIONS env var, if set: a comma-separated list, each entry either
- *     a full version ("v1.36.3") used as-is, or a minor-only version
- *     ("1.36") resolved to its latest patch via dl.k8s.io/release/stable-1.36.txt.
- *     Each is built into its own ./specs/<version>/ - completely separate
+ *   - K8S_VERSIONS env var, if set: a comma-separated list, each entry one of
+ *       "v1.36.3"      a full version, used as-is
+ *       "1.36"         a minor, resolved to its latest patch via
+ *                      dl.k8s.io/release/stable-1.36.txt
+ *       "eks"          every minor Amazon EKS still offers, standard *and*
+ *                      extended support, each resolved to its latest patch
+ *       "eks-standard" the same, but only the minors in standard support
+ *     Entries may be combined ("1.36,eks") and the result is deduplicated, so
+ *     an alias and an explicit minor never build the same version twice. Each
+ *     resolved version gets its own ./specs/<version>/ - completely separate
  *     from the others.
  *   - Otherwise, single-version mode (unchanged from before): K8S_VERSION env
  *     var if set, else the latest stable release from dl.k8s.io.
@@ -29,22 +35,61 @@ const OUT_DIR = path.join(process.cwd(), 'specs');
 const VERSIONS_FILE = path.join(process.cwd(), '.k8s-versions.json');
 
 const MINOR_RE = /^v?\d+\.\d+$/;
+const EKS_SUPPORT_URL = 'https://endoflife.date/api/v1/products/amazon-eks';
 
+async function resolveMinor(minorEntry) {
+  const minor = minorEntry.replace(/^v/, '');
+  const res = await fetch(`https://dl.k8s.io/release/stable-${minor}.txt`);
+  if (!res.ok) throw new Error(`Could not resolve latest patch for minor ${minorEntry}: ${res.status}`);
+  return (await res.text()).trim();
+}
+
+/**
+ * Expands the "eks" / "eks-standard" aliases into the Kubernetes minors that
+ * Amazon EKS currently runs, so the tracked set follows AWS's support calendar
+ * instead of a hand-maintained list.
+ *
+ * Sourced from endoflife.date, not eks:DescribeClusterVersions - that API needs
+ * AWS credentials, and this build should stay credential-free. Cross-checked
+ * against DescribeClusterVersions on 2026-08-26: both said 1.31 through 1.36.
+ *
+ * Their flags, per cycle: `isEol` marks the end of EKS *standard* support and
+ * `isMaintained` the end of *extended* support, i.e. the point where EKS stops
+ * offering the version at all. Do not filter on `isEoes` instead - it is null,
+ * not true, for old cycles that never had extended support, which would let
+ * long-dead minors back in.
+ */
+async function resolveEksMinors(standardOnly) {
+  const res = await fetch(EKS_SUPPORT_URL, {headers: {accept: 'application/json'}});
+  if (!res.ok) throw new Error(`Could not fetch EKS support calendar: ${res.status}`);
+  const releases = (await res.json())?.result?.releases;
+  if (!Array.isArray(releases)) throw new Error('EKS support calendar had an unexpected shape');
+  const minors = releases
+    .filter((r) => (standardOnly ? r.isEol === false : r.isMaintained === true))
+    .map((r) => r.name);
+  // Never silently narrow the build: an empty list here would quietly delete
+  // every EKS version page from the deployed site.
+  if (minors.length === 0) throw new Error('EKS support calendar returned no supported minors');
+  console.log(`  ${standardOnly ? 'eks-standard' : 'eks'} -> ${minors.join(', ')}`);
+  return minors;
+}
+
+// Each entry expands to one or more full versions.
 async function resolveEntry(entry) {
   entry = entry.trim();
-  if (MINOR_RE.test(entry)) {
-    const minor = entry.replace(/^v/, '');
-    const res = await fetch(`https://dl.k8s.io/release/stable-${minor}.txt`);
-    if (!res.ok) throw new Error(`Could not resolve latest patch for minor ${entry}: ${res.status}`);
-    return (await res.text()).trim();
+  const alias = entry.toLowerCase();
+  if (alias === 'eks' || alias === 'eks-standard') {
+    const minors = await resolveEksMinors(alias === 'eks-standard');
+    return Promise.all(minors.map(resolveMinor));
   }
-  return entry.startsWith('v') ? entry : `v${entry}`;
+  if (MINOR_RE.test(entry)) return [await resolveMinor(entry)];
+  return [entry.startsWith('v') ? entry : `v${entry}`];
 }
 
 async function resolveVersions() {
   if (process.env.K8S_VERSIONS) {
     const entries = process.env.K8S_VERSIONS.split(',').map((s) => s.trim()).filter(Boolean);
-    const versions = await Promise.all(entries.map(resolveEntry));
+    const versions = (await Promise.all(entries.map(resolveEntry))).flat();
     return [...new Set(versions)];
   }
   if (process.env.K8S_VERSION) return [process.env.K8S_VERSION.trim()];
